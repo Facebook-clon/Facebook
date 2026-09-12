@@ -1,4 +1,4 @@
-const supabaseAdmin = require('../supabaseClient');
+const supabaseAdmin = require('./supabaseClient');
 
 /**
  * Verifies the Bearer token sent by the mobile app (the same token
