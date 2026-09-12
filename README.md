@@ -1,55 +1,41 @@
-# مشاكل لاحظتها في المستند اللي بعتّه
+# تطبيق الموبايل — نسخة من فيسبوك
 
-1. **مفيش كود سيرفر (Backend) خالص في المستند.** القسم 4 فيه كود الموبايل بس (React Native)، وقسم 2 و5 بيتكلموا عن Express و Supabase لكن مفيش سطر كود واحد للسيرفر أو حتى SQL لإنشاء الجداول. ده أهم حاجة ناقصة، فعملتلك سيرفر كامل شغال (شايفه في الملفات).
+## الأخطاء اللي اتصلحت هنا
 
-2. **`storageService.js` بيستخدم `atob()`** — الدالة دي مش موجودة في React Native أصلاً (هي خاصة بالمتصفح). لازم تستخدم `Buffer.from(base64, 'base64')` بدلها، أو مكتبة `base64-arraybuffer`.
+1. **`atob()`** كانت مستخدمة في `storageService.js` لرفع الصور، ودي مش شغالة في React Native. اتبدلت بمكتبة `base64-arraybuffer`.
+2. **Race condition** في `FeedScreen.js` (`handleLike`) — دلوقتي بناخد نسخة من البيانات القديمة قبل أي تعديل.
+3. **مفيش شاشة تسجيل دخول** كانت موجودة أصلاً — ضفت `AuthScreen.js` كاملة (تسجيل / دخول عبر Supabase Auth).
+4. **الرابط (`API_URL`)** في `api.js` بقى يشاور على سيرفرك الفعلي:
+   `https://facebook-production-f363.up.railway.app/api`
 
-3. **`FeedScreen.js` فيه Race Condition في `handleLike`**: المتغير `previousPosts` بيتحدد جوه الـ callback بتاع `setPosts`، ولو الـ API call فشل قبل ما React ينفذ الـ callback، هيرجع `undefined` بدل البيانات القديمة. الأصح تاخد نسخة من `posts` قبل ما تستدعي `setPosts`.
+## خطوة لازم تعملها بنفسك قبل التشغيل
 
-4. **مفيش Endpoint لتسجيل الدخول/التسجيل** في المستند رغم ذكر Supabase Auth — السيرفر اللي عملته بيفترض إن تسجيل الدخول بيتم مباشرة عبر Supabase Auth من التطبيق نفسه، والتوكن ده اللي بيتبعت بعدين للسيرفر في الـ Authorization header.
-
-5. **الرفع المباشر للصور من الموبايل لـ Supabase باستخدام anon key** يحتاج سياسات RLS دقيقة على الـ Storage bucket، غير موضحة في المستند — لازم تتظبط من لوحة تحكم Supabase.
+في ملف `app.json`، غيّر السطر:
+```
+"SUPABASE_ANON_KEY": "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE"
+```
+لمفتاح الـ **Publishable key** (اللي شكله `sb_publis...`) من نفس صفحة API Keys في Supabase — **مش** الـ secret key.
 
 ---
 
-# ملفات السيرفر اللي عملتها
+## طريقة التشغيل من الموبايل (من غير كمبيوتر)
 
-```
-server/
-├── index.js                     # نقطة تشغيل السيرفر
-├── package.json
-├── .env.example                 # انسخه لـ .env وحط بياناتك
-├── schema.sql                   # أوامر SQL لإنشاء الجداول (ناقصة في مستندك)
-└── src/
-    ├── supabaseClient.js
-    ├── middleware/auth.js       # يتحقق من التوكن الجاي من التطبيق
-    └── routes/
-        ├── posts.js             # GET/POST /api/posts + like
-        ├── comments.js          # GET/POST /api/posts/:id/comments
-        └── notifications.js
-```
+بما إنك شغال بالكامل من التليفون، أسهل طريقة هي **Expo Snack**:
 
-## طريقة التشغيل محليًا
+1. حمّل تطبيق **Expo Go** من Google Play.
+2. افتح المتصفح وروح على: **snack.expo.dev**
+3. سجّل دخول بحساب Expo (أو اعمل واحد سريع بالإيميل).
+4. من قائمة الملفات في Snack، امسح الملفات الافتراضية واعمل نفس هيكل الملفات اللي عندك هنا:
+   - `App.js`
+   - `src/api/api.js`
+   - `src/services/storageService.js`
+   - `src/screens/AuthScreen.js`
+   - `src/screens/FeedScreen.js`
+   - `src/screens/CommentsScreen.js`
+   - `src/screens/CreatePostScreen.js`
+5. من إعدادات الـ Snack (أيقونة الترس)، ضيف الـ Dependencies المذكورة في `package.json`.
+6. هيظهرلك QR Code — افتح تطبيق **Expo Go** في موبايلك وامسحه، والتطبيق هيشتغل مباشرة على جهازك.
 
-```bash
-cd server
-npm install
-cp .env.example .env
-# افتح .env وحط SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY من لوحة تحكم Supabase
-npm start
-```
+## لو عايز تطبيق حقيقي (APK) تقدر تنزّله وتوزّعه
 
-السيرفر هيشتغل على `http://localhost:4000`.
-
-## قبل التشغيل، لازم:
-
-1. تنفذ محتوى `schema.sql` في SQL Editor بتاع Supabase مشروعك.
-2. تعمل Storage Buckets باسم `avatars` و `post-images` وتخليهم Public.
-3. تفعّل Email/Password (أو أي طريقة) في Supabase Auth.
-
-## النشر على Render
-
-1. ادفع الفولدر ده لمستودع GitHub.
-2. من Render: New -> Web Service -> اربط المستودع.
-3. Start Command: `npm start`.
-4. ضيف Environment Variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NODE_ENV=production`.
+ده محتاج خطوة إضافية اسمها **EAS Build**، وممكن تتم من نفس موقع expo.dev من غير كمبيوتر (بس محتاجة شوية إعداد إضافي). قولّي لو عايز نوصل للمرحلة دي بعد ما تتأكد إن التطبيق شغال صح على Expo Go.
