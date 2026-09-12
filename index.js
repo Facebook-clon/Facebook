@@ -2,9 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-const postsRouter = require('./src/routes/posts');
-const commentsRouter = require('./src/routes/comments');
-const notificationsRouter = require('./src/routes/notifications');
+const postsRouter = require('./posts');
+const commentsRouter = require('./comments');
+const notificationsRouter = require('./notifications');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
